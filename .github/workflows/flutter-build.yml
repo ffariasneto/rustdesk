@@ -12,6 +12,9 @@ on:
       publish-update-metadata:
         type: boolean
         default: false
+      windows-only:
+        type: boolean
+        default: false
 
 # NOTE: F-Droid builder script 'flutter/build_fdroid.sh' reads environment
 # variables from this workflow!
@@ -96,6 +99,7 @@ jobs:
 
   generate-sbom:
     needs: [validate-update-metadata-keys]
+    if: ${{ !inputs.windows-only }}
     runs-on: ubuntu-latest
 
     permissions:
@@ -545,6 +549,7 @@ jobs:
   # The fallback for the flutter version, we use Sciter for 32bit Windows.
   build-for-windows-sciter:
     name: ${{ matrix.job.target }} (${{ matrix.job.os }})
+    if: ${{ !inputs.windows-only }}
     needs: [validate-update-metadata-keys]
     runs-on: ${{ matrix.job.os }}
     # Temporarily disable this action due to additional test is needed.
@@ -725,7 +730,7 @@ jobs:
             ./SignOutput/rustdesk-*.exe
 
   build-rustdesk-ios:
-    if: ${{ inputs.upload-artifact }}
+    if: ${{ inputs.upload-artifact && !inputs.windows-only }}
     name: build rustdesk ios ipa
     runs-on: ${{ matrix.job.os }}
     needs: [generate-bridge]
@@ -848,6 +853,7 @@ jobs:
 
   build-for-macOS:
     name: ${{ matrix.job.target }}
+    if: ${{ !inputs.windows-only }}
     runs-on: ${{ matrix.job.os }}
     needs: [generate-bridge]
     strategy:
@@ -1314,6 +1320,7 @@ jobs:
 
   build-rustdesk-android:
     needs: [generate-bridge]
+    if: ${{ !inputs.windows-only }}
     name: build rustdesk android apk ${{ matrix.job.target }}
     runs-on: ${{ matrix.job.os }}
     strategy:
@@ -1792,6 +1799,7 @@ jobs:
 
   build-rustdesk-linux:
     needs: [generate-bridge]
+    if: ${{ !inputs.windows-only }}
     name: build rustdesk linux ${{ matrix.job.target }}
     runs-on: ${{ matrix.job.on }}
     strategy:
@@ -2141,6 +2149,7 @@ jobs:
   # flatpak need that job, and a failure here must not skip them.
   build-rustdesk-linux-drm:
     needs: [generate-bridge]
+    if: ${{ !inputs.windows-only }}
     name: build rustdesk linux drm x86_64
     runs-on: ubuntu-22.04
     steps:
@@ -2459,7 +2468,7 @@ jobs:
           path: ${{ env.DRM_DEB }}
 
   build-rustdesk-linux-sciter:
-    if: ${{ inputs.upload-artifact }}
+    if: ${{ inputs.upload-artifact && !inputs.windows-only }}
     needs: [validate-update-metadata-keys]
     runs-on: ${{ matrix.job.on }}
     name: build-rustdesk-linux-sciter ${{ matrix.job.target }}
