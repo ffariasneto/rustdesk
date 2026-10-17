@@ -5,6 +5,9 @@ on:
 
 jobs:
   build-fti-windows:
+    # Publica o instalador numa release do fork.
+    permissions:
+      contents: write
     uses: ./.github/workflows/flutter-build.yml
     secrets: inherit
     with:
