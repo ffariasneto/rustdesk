@@ -15,6 +15,9 @@ on:
       windows-only:
         type: boolean
         default: false
+      app-name:
+        type: string
+        default: ""
 
 # NOTE: F-Droid builder script 'flutter/build_fdroid.sh' reads environment
 # variables from this workflow!
@@ -550,6 +553,31 @@ jobs:
         with:
           name: rustdesk-unsigned-msi-template-${{ matrix.job.arch }}
           path: ./msi-template
+
+      - name: Rebuild exe and msi with custom app name
+        # install_me copies the packed exe without renaming it, so a custom app name
+        # must already be the exe name inside the package.
+        if: env.UPLOAD_ARTIFACT == 'true' && inputs.app-name != ''
+        run: |
+          $app = '${{ inputs.app-name }}'
+          git checkout -- res/msi
+          mv ./rustdesk/rustdesk.exe "./rustdesk/$app.exe"
+          pushd ./libs/portable
+          python ./generate.py -f ../../rustdesk/ -o . -e "../../rustdesk/$app.exe"
+          if ($LASTEXITCODE -ne 0) { throw "generate.py failed" }
+          popd
+          mv -Force ./target/release/rustdesk-portable-packer.exe ./SignOutput/rustdesk-${{ env.VERSION }}-${{ matrix.job.arch }}.exe
+          pushd ./res/msi
+          python preprocess.py --arp -d ../../rustdesk --app-name "$app"
+          if ($LASTEXITCODE -ne 0) { throw "preprocess.py failed" }
+          $msiPlatform = if ('${{ matrix.job.arch }}' -eq 'aarch64') { 'ARM64' } else { 'x64' }
+          msbuild msi.sln -t:clean -p:Configuration=Release -p:Platform=$msiPlatform
+          msbuild msi.sln -p:Configuration=Release -p:Platform=$msiPlatform /p:TargetVersion=Windows10
+          if ($LASTEXITCODE -ne 0) { throw "msbuild failed" }
+          $msi = Get-ChildItem ./Package/bin/*/Release/en-us/Package.msi | Select-Object -First 1
+          mv -Force $msi.FullName ../../SignOutput/rustdesk-${{ env.VERSION }}-${{ matrix.job.arch }}.msi
+          popd
+          sha256sum ./SignOutput/rustdesk-*
 
       - name: Sign rustdesk self-extracted file
         if: env.UPLOAD_ARTIFACT == 'true' && env.SIGN_BASE_URL != '-2'
